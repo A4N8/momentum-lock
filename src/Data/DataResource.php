@@ -43,14 +43,23 @@ class DataResource extends Data
 
     public static function collect(mixed $items, ?string $into = null): array|DataCollection|PaginatedDataCollection|CursorPaginatedDataCollection|Enumerable|AbstractPaginator|PaginatorContract|AbstractCursorPaginator|CursorPaginatorContract|LazyCollection|Collection
     {
+        $parentData = parent::collect($items, $into);
+
+        $modelClass = $parentData->items()->first()->modelClass;
+        $models = $modelClass::whereIn('id', $parentData->items()->pluck('id'))->get();
+
         /** @var static $data */
-        $data = parent::collect($items, $into)->transform(function ($data, $key) use ($items) {
-            if ($items[$key] instanceof Model) {
-                $data->setModel($items[$key]);
+        $data = parent::collect($items, $into)->through(function ($data, $key) use ($items, $models) {
+            if ($models->contains($data->id)) {
+                $data->setModel($models->only($data->id)->first());
             }
 
             return $data;
         });
+
+        if ($data instanceof PaginatedDataCollection) {
+            return new PaginatedDataCollection($data->dataClass, $data->items());
+        }
 
         return $data;
     }
@@ -71,7 +80,7 @@ class DataResource extends Data
         }
     }
 
-    public function transform(
+   public function transform(
         null|TransformationContextFactory|TransformationContext $transformationContext = null,
     ): array {
         $this->appendPermissions();
