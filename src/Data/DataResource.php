@@ -45,22 +45,27 @@ class DataResource extends Data
     {
         $parentData = parent::collect($items, $into);
 
-        $modelClass = $parentData->items()->first()?->modelClass;
+        if ($parentData instanceof PaginatedDataCollection) {
+            $modelClass = $parentData->items()->first()?->modelClass;
 
-        if (filled($modelClass)) {
-            $models = $modelClass::whereIn('id', $parentData->items()->pluck('id'))->get();
+            if (filled($modelClass)) {
+                $models = $modelClass::whereIn('id', $parentData->items()->pluck('id'))->get();
 
-            /** @var static $data */
-            $data = parent::collect($items, $into)->through(function ($data, $key) use ($items, $models) {
-                if ($models->contains($data->id)) {
-                    $data->setModel($models->only($data->id)->first());
-                }
+                /** @var static $data */
+                $data = parent::collect($items, $into)->through(function ($data, $key) use ($items, $models) {
+                    if ($models->contains($data->id)) {
+                        $data->setModel($models->only($data->id)->first());
+                    }
 
-                return $data;
-            });
+                    return $data;
+                });
+            } else {
+                $data = $parentData;
+            }
         } else {
             $data = $parentData;
         }
+
 
         if ($data instanceof PaginatedDataCollection) {
             return new PaginatedDataCollection($data->dataClass, $data->items());
