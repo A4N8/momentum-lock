@@ -45,6 +45,7 @@ class DataResource extends Data
     {
         $parentData = parent::collect($items, $into);
 
+
         if ($parentData instanceof PaginatedDataCollection) {
             $modelClass = $parentData->items()->first()?->modelClass;
 
@@ -62,13 +63,24 @@ class DataResource extends Data
             } else {
                 $data = $parentData;
             }
+        } elseif ($parentData instanceof DataCollection) {
+            $data = parent::collect($items, $into)->through(function ($data, $key) use ($items) {
+                if ($items[$key] instanceof Model) {
+                    $data->setModel($items[$key]);
+                }
+
+                return $data;
+            });
         } else {
             $data = $parentData;
         }
 
-
         if ($data instanceof PaginatedDataCollection) {
             return new PaginatedDataCollection($data->dataClass, $data->items());
+        }
+
+        if ($data instanceof DataCollection) {
+            return new DataCollection($data->dataClass, $data->items());
         }
 
         return $data;
