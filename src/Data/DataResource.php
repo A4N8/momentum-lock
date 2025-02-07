@@ -27,6 +27,7 @@ use Spatie\LaravelData\Support\Transformation\TransformationContextFactory;
 use Illuminate\Container\Container;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Str;
+use Spatie\Enum\Laravel\Enum;
 
 class DataResource extends Data implements DeprecatedData
 {
@@ -101,6 +102,23 @@ class DataResource extends Data implements DeprecatedData
             })
                 ->firstOrFail();
 
+            $itemsData = $items[$key]->toArray();
+
+            if (\Composer\InstalledVersions::isInstalled('spatie/laravel-enum')) {
+                $enumItems = collect($items[$key])->filter(function ($item, $key) {
+                    return is_object($item) && is_subclass_of($item, Enum::class);
+                });
+
+                if ($enumItems->isNotEmpty()) {
+                    $itemsData = array_merge(
+                        $items[$key]->toArray(),
+                        $enumItems->mapWithKeys(function ($item, $key) {
+                            return [$key => $item->value];
+                        })->all()
+                    );
+                }
+            }
+
             if (
                 (\Composer\InstalledVersions::isInstalled('tightenco/parental')
                 || \Composer\InstalledVersions::isInstalled('calebporzio/parental'))
@@ -109,11 +127,13 @@ class DataResource extends Data implements DeprecatedData
             ) {
                 $inheritanceColumn = (new $class)->getInheritanceColumn();
 
-                $hydarateData = array_merge($items[$key]->toArray(), [
-                    $inheritanceColumn => $items[$key]->toArray()[$inheritanceColumn]['value'],
+                $hydarateData = array_merge($itemsData, [
+                    $inheritanceColumn => is_array($itemsData[$inheritanceColumn]) && isset($itemsData[$inheritanceColumn]['value'])
+                        ? $itemsData[$inheritanceColumn]['value']
+                        : $itemsData[$inheritanceColumn],
                 ]);
             } else {
-                $hydarateData = $items[$key]->toArray();
+                $hydarateData = $itemsData;
             }
 
             $data->setModel($class::hydrate([$hydarateData])->first());
