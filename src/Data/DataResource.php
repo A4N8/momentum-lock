@@ -99,9 +99,9 @@ class DataResource extends Data implements DeprecatedData
                             ->value();
             })
                 ->firstOrFail();
-
+            
                 $data->setModel(
-                    $class::hydrate([$items[$key]->toArray()])->first()
+                    (new $class)->newInstance([$items[$key]->toArray()])->first()
                 );
 
             return $data;
