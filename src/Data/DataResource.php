@@ -31,6 +31,22 @@ class DataResource extends Data
         return $data;
     }
 
+    public static function collect(mixed $items, ?string $into = null): array|DataCollection|PaginatedDataCollection|CursorPaginatedDataCollection|Enumerable|AbstractPaginator|PaginatorContract|AbstractCursorPaginator|CursorPaginatorContract|LazyCollection|Collection
+    {
+        $parent = parent::collect($items, $into);
+
+        /** @var static $data */
+        $data = $parent->through(function ($data, $key) use ($items) {
+                $data->setModel(
+                    $class::hydrate([$items[$key]->toArray()])->first()
+                );
+
+            return $data;
+        });
+
+        return $data;
+    }
+
     protected function setModel(Model $model): static
     {
         $this->model = $model;
