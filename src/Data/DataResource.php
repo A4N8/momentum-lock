@@ -100,20 +100,23 @@ class DataResource extends Data implements DeprecatedData
                             ->value();
             })
                 ->firstOrFail();
-            
+
             if (
                 (\Composer\InstalledVersions::isInstalled('tightenco/parental')
                 || \Composer\InstalledVersions::isInstalled('calebporzio/parental'))
                 && trait_exists(HasChildren::class)
+                && in_array(HasChildren::class, class_uses_recursive($class))
             ) {
-                $setModel = in_array(HasChildren::class, class_uses_recursive($class))
-                    ? (new $class)->newInstance([$items[$key]->toArray()])->first()
-                    : $class::hydrate([$items[$key]->toArray()])->first();
+                $inheritanceColumn = (new $class)->getInheritanceColumn();
+
+                $hydarateData = array_merge($items[$key]->toArray(), [
+                    $inheritanceColumn => $items[$key]->toArray()[$inheritanceColumn]['value'],
+                ]);
             } else {
-                $setModel = $class::hydrate([$items[$key]->toArray()])->first();
+                $hydarateData = $items[$key]->toArray();
             }
 
-                $data->setModel($setModel);
+            $data->setModel($class::hydrate([$hydarateData])->first());
 
             return $data;
         });
