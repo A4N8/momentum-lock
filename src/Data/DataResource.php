@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Enumerable;
 use Illuminate\Support\LazyCollection;
 use Momentum\Lock\Lock;
+use Parental\HasChildren;
 use Spatie\LaravelData\Concerns\WithDeprecatedCollectionMethod;
 use Spatie\LaravelData\Contracts\DeprecatedData;
 use Spatie\LaravelData\CursorPaginatedDataCollection;
@@ -99,10 +100,12 @@ class DataResource extends Data implements DeprecatedData
                             ->value();
             })
                 ->firstOrFail();
-            
-                $data->setModel(
-                    (new $class)->newInstance([$items[$key]->toArray()])->first()
-                );
+
+            $setModel = in_array(HasChildren::class, class_uses_recursive($class))
+                ? (new $class)->newInstance([$items[$key]->toArray()])->first()
+                : $class::hydrate([$items[$key]->toArray()])->first();
+
+                $data->setModel($setModel);
 
             return $data;
         });
