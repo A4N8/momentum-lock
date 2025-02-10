@@ -55,30 +55,32 @@ class DataResource extends Data implements DeprecatedData
 
     public static function getModels(): Collection
     {
-        $models = collect(File::allFiles(app_path()))
-            ->map(function ($item) {
-                $path = $item->getRelativePathName();
-                $class = sprintf(
-                    '\%s%s',
-                    Container::getInstance()->getNamespace(),
-                    strtr(substr($path, 0, strrpos($path, '.')), '/', '\\')
-                );
+        return once(function () {
+            $models = collect(File::allFiles(app_path()))
+                ->map(function ($item) {
+                    $path = $item->getRelativePathName();
+                    $class = sprintf(
+                        '\%s%s',
+                        Container::getInstance()->getNamespace(),
+                        strtr(substr($path, 0, strrpos($path, '.')), '/', '\\')
+                    );
 
-                return $class;
-            })
-            ->filter(function ($class) {
-                $valid = false;
+                    return $class;
+                })
+                ->filter(function ($class) {
+                    $valid = false;
 
-                if (class_exists($class)) {
-                    $reflection = new \ReflectionClass($class);
-                    $valid = $reflection->isSubclassOf(Model::class) &&
-                        !$reflection->isAbstract();
-                }
+                    if (class_exists($class)) {
+                        $reflection = new \ReflectionClass($class);
+                        $valid = $reflection->isSubclassOf(Model::class) &&
+                            !$reflection->isAbstract();
+                    }
 
-                return $valid;
-            });
+                    return $valid;
+                });
 
-        return $models->values();
+            return $models->values();
+        });
     }
 
     public static function collect(mixed $items, ?string $into = null): array|DataCollection|PaginatedDataCollection|CursorPaginatedDataCollection|Enumerable|AbstractPaginator|PaginatorContract|AbstractCursorPaginator|CursorPaginatorContract|LazyCollection|Collection
