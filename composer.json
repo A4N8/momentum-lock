@@ -22,8 +22,8 @@
   },
   "require": {
     "php": "^8.1",
-    "illuminate/support": "^10|^11",
-    "illuminate/auth": "^10|^11",
+    "illuminate/support": "^11",
+    "illuminate/auth": "^11",
     "spatie/laravel-data": "^4.0",
     "spatie/laravel-typescript-transformer": "^2.4"
   },
