@@ -87,7 +87,6 @@ class DataResource extends Data implements DeprecatedData
     {
         $parent = parent::collect($items, $into);
 
-
         /** @var static $data */
         $data = $parent->through(function ($data, $key) use ($items) {
             $class = $data->modelClass ?? static::getModels()->filter(function (string $class) use ($data) {
@@ -104,41 +103,26 @@ class DataResource extends Data implements DeprecatedData
             })
                 ->firstOrFail();
 
-            $itemsData = $items[$key]->toArray();
+            $modelId = $items[$key]->{(new $class)->getKeyName()};
 
-            if (\Composer\InstalledVersions::isInstalled('spatie/laravel-enum')) {
-                $enumItems = collect($items[$key])->filter(function ($item, $key) {
-                    return is_object($item) && is_subclass_of($item, Enum::class);
-                });
-
-                if ($enumItems->isNotEmpty()) {
-                    $itemsData = array_merge(
-                        $items[$key]->toArray(),
-                        $enumItems->mapWithKeys(function ($item, $key) {
-                            return [$key => $item->value];
-                        })->all()
-                    );
-                }
-            }
+            $hydratedData = [
+                [
+                    (new $class)->getKeyName() => $modelId
+                ]
+            ];
 
             if (
                 (\Composer\InstalledVersions::isInstalled('tightenco/parental')
-                || \Composer\InstalledVersions::isInstalled('calebporzio/parental'))
+                    || \Composer\InstalledVersions::isInstalled('calebporzio/parental'))
                 && trait_exists(HasChildren::class)
                 && in_array(HasChildren::class, class_uses_recursive($class))
             ) {
                 $inheritanceColumn = (new $class)->getInheritanceColumn();
 
-                $hydarateData = array_merge($itemsData, [
-                    $inheritanceColumn => is_array($itemsData[$inheritanceColumn]) && isset($itemsData[$inheritanceColumn]['value'])
-                        ? $itemsData[$inheritanceColumn]['value']
-                        : $itemsData[$inheritanceColumn],
-                ]);
-            } else {
-                $hydarateData = $itemsData;
+                $hydratedData[0][$inheritanceColumn] = $items[$key]->{$inheritanceColumn}->value;
             }
 
-            $data->setModel($class::hydrate([$hydarateData])->first());
+            $data->setModel($class::hydrate($hydratedData)->first());
 
             return $data;
         });
