@@ -13,6 +13,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Enumerable;
 use Illuminate\Support\LazyCollection;
 use Momentum\Lock\Lock;
+use Spatie\LaravelData\Concerns\WithDeprecatedCollectionMethod;
+use Spatie\LaravelData\Contracts\DeprecatedData;
 use Spatie\LaravelData\CursorPaginatedDataCollection;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -20,8 +22,10 @@ use Spatie\LaravelData\PaginatedDataCollection;
 use Spatie\LaravelData\Support\Transformation\TransformationContext;
 use Spatie\LaravelData\Support\Transformation\TransformationContextFactory;
 
-class DataResource extends Data
+class DataResource extends Data implements DeprecatedData
 {
+    use WithDeprecatedCollectionMethod;
+
     protected ?Model $model;
 
     /** @var null|array */
@@ -45,38 +49,20 @@ class DataResource extends Data
     {
         $parentData = parent::collect($items, $into);
 
-
-        if ($parentData instanceof PaginatedDataCollection) {
-            $modelClass = $parentData->items()->first()?->modelClass;
-
-            if (filled($modelClass)) {
-                $models = $modelClass::whereIn('id', $parentData->items()->pluck('id'))->get();
-
-                /** @var static $data */
-                $data = parent::collect($items, $into)->through(function ($data, $key) use ($items, $models) {
-                    if ($models->contains($data->id)) {
-                        $data->setModel($models->only($data->id)->first());
-                    }
-
-                    return $data;
-                });
-            } else {
-                $data = $parentData;
+        $data = parent::collect($items, $into)->through(function ($data, $key) use ($items) {
+            if ($items[$key] instanceof Model) {
+                $data->setModel($items[$key]);
             }
-        } elseif ($parentData instanceof DataCollection) {
-            $data = parent::collect($items, $into)->through(function ($data, $key) use ($items) {
-                if ($items[$key] instanceof Model) {
-                    $data->setModel($items[$key]);
-                }
 
-                return $data;
-            });
-        } else {
-            $data = $parentData;
-        }
+            return $data;
+        });
 
         if ($data instanceof PaginatedDataCollection) {
             return new PaginatedDataCollection($data->dataClass, $data->items());
+        }
+
+        if ($data instanceof CursorPaginatedDataCollection) {
+            return new CursorPaginatedDataCollection($data->dataClass, $data->items());
         }
 
         if ($data instanceof DataCollection) {
