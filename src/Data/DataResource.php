@@ -49,27 +49,13 @@ class DataResource extends Data implements DeprecatedData
     {
         $parentData = parent::collect($items, $into);
 
-        $data = parent::collect($items, $into)->through(function ($data, $key) use ($items) {
+        return parent::collect($items, $into)->through(function ($data, $key) use ($items) {
             if ($items[$key] instanceof Model) {
                 $data->setModel($items[$key]);
             }
 
             return $data;
         });
-
-        if ($data instanceof PaginatedDataCollection) {
-            return new PaginatedDataCollection($data->dataClass, $data->items());
-        }
-
-        if ($data instanceof CursorPaginatedDataCollection) {
-            return new CursorPaginatedDataCollection($data->dataClass, $data->items());
-        }
-
-        if ($data instanceof DataCollection) {
-            return new DataCollection($data->dataClass, $data->items());
-        }
-
-        return $data;
     }
 
     protected function setModel(Model $model): static
