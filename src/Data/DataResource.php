@@ -49,7 +49,17 @@ class DataResource extends Data implements DeprecatedData
     {
         $parentData = parent::collect($items, $into);
 
-        return parent::collect($items, $into)->through(function ($data, $key) use ($items) {
+        if ($parentData instanceof Collection || $parentData instanceof \Illuminate\Database\Eloquent\Collection) {
+            return $parentData->transform(function ($data, $key) use ($items) {
+                if ($items[$key] instanceof Model) {
+                    $data->setModel($items[$key]);
+                }
+
+                return $data;
+            });
+        }
+
+        return $parentData->through(function ($data, $key) use ($items) {
             if ($items[$key] instanceof Model) {
                 $data->setModel($items[$key]);
             }
