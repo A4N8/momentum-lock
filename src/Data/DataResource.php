@@ -47,25 +47,50 @@ class DataResource extends Data implements DeprecatedData
 
     public static function collect(mixed $items, ?string $into = null): array|DataCollection|PaginatedDataCollection|CursorPaginatedDataCollection|Enumerable|AbstractPaginator|PaginatorContract|AbstractCursorPaginator|CursorPaginatorContract|LazyCollection|Collection
     {
+        $originalItems = static::extractOriginalItems($items);
+
         $parentData = parent::collect($items, $into);
 
-        if ($parentData instanceof Collection || $parentData instanceof \Illuminate\Database\Eloquent\Collection) {
-            return $parentData->transform(function ($data, $key) use ($items) {
-                if ($items[$key] instanceof Model) {
-                    $data->setModel($items[$key]);
-                }
-
-                return $data;
-            });
-        }
-
-        return $parentData->through(function ($data, $key) use ($items) {
-            if ($items[$key] instanceof Model) {
-                $data->setModel($items[$key]);
+        if (is_array($parentData)) {
+            foreach ($parentData as $key => $data) {
+                $parentData[$key] = static::attachOriginalModel($data, $originalItems[$key] ?? null);
             }
 
-            return $data;
-        });
+            return $parentData;
+        }
+
+        if ($parentData instanceof Collection || $parentData instanceof \Illuminate\Database\Eloquent\Collection) {
+            return $parentData->transform(fn ($data, $key) => static::attachOriginalModel($data, $originalItems[$key] ?? null));
+        }
+
+        return $parentData->through(fn ($data, $key) => static::attachOriginalModel($data, $originalItems[$key] ?? null));
+    }
+
+    protected static function extractOriginalItems(mixed $items): array
+    {
+        if (
+            $items instanceof PaginatorContract
+            || $items instanceof AbstractPaginator
+            || $items instanceof CursorPaginatorContract
+            || $items instanceof AbstractCursorPaginator
+        ) {
+            return $items->items();
+        }
+
+        if ($items instanceof Enumerable) {
+            return $items->all();
+        }
+
+        return is_array($items) ? $items : [];
+    }
+
+    protected static function attachOriginalModel(mixed $data, mixed $originalItem): mixed
+    {
+        if ($data instanceof static && $originalItem instanceof Model) {
+            $data->setModel($originalItem);
+        }
+
+        return $data;
     }
 
     protected function setModel(Model $model): static
@@ -84,7 +109,7 @@ class DataResource extends Data implements DeprecatedData
         }
     }
 
-   public function transform(
+    public function transform(
         null|TransformationContextFactory|TransformationContext $transformationContext = null,
     ): array {
         $this->appendPermissions();
